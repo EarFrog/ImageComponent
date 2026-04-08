@@ -9,7 +9,6 @@
 # -enable-property-obfuscation: obfuscate the property names
 # -enable-toplevel-obfuscation: obfuscate the names in the global scope
 # -compact: remove unnecessary blank spaces and all line feeds
-# -remove-log: remove all console.* statements
 # -print-namecache: print the name cache that contains the mapping from the old names to new names
 # -apply-namecache: reuse the given cache file
 
@@ -21,7 +20,6 @@
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
--remove-log
 
 # Keep Logger class and its methods (needed for runtime logging)
 -keep-class-name class **.Logger { *; }

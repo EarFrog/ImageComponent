@@ -11,8 +11,20 @@ interface ErrorWithStack {
 export class Logger {
     private static readonly DOMAIN: number = 0x0000;
     private static readonly DEFAULT_TAG: string = 'ImageComponent';
+    private static debugEnabled: boolean = true;
+
+    static setDebugEnabled(enabled: boolean): void {
+        Logger.debugEnabled = enabled;
+    }
+
+    static isDebugEnabled(): boolean {
+        return Logger.debugEnabled;
+    }
 
     static debug(TAG: string = '', message: string, data?: LogData): void {
+        if (!Logger.debugEnabled) {
+            return;
+        }
         hilog.debug(Logger.DOMAIN, Logger.DEFAULT_TAG, `[${TAG}]: %{public}s`, Logger.buildMessage(message, data));
     }
 
