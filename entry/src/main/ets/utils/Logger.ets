@@ -7,20 +7,20 @@ export class Logger {
     private static readonly DOMAIN: number = 0x0000;
     private static readonly DEFAULT_TAG: string = 'ImageComponent';
 
-    static debug(message: string, data?: LogData, tag: string = Logger.DEFAULT_TAG): void {
-        hilog.debug(Logger.DOMAIN, tag, '%{public}s', Logger.buildMessage(message, data));
+    static debug(TAG: string = '', message: string, data?: LogData): void {
+        hilog.debug(Logger.DOMAIN, Logger.DEFAULT_TAG, `[${TAG}]: %{public}s`, Logger.buildMessage(message, data));
     }
 
-    static info(message: string, data?: LogData, tag: string = Logger.DEFAULT_TAG): void {
-        hilog.info(Logger.DOMAIN, tag, '%{public}s', Logger.buildMessage(message, data));
+    static info(TAG: string = '', message: string, data?: LogData): void {
+        hilog.info(Logger.DOMAIN, Logger.DEFAULT_TAG, `[${TAG}]: %{public}s`, Logger.buildMessage(message, data));
     }
 
-    static warn(message: string, data?: LogData, tag: string = Logger.DEFAULT_TAG): void {
-        hilog.warn(Logger.DOMAIN, tag, '%{public}s', Logger.buildMessage(message, data));
+    static warn(TAG: string = '', message: string, data?: LogData): void {
+        hilog.warn(Logger.DOMAIN, Logger.DEFAULT_TAG, `[${TAG}]: %{public}s`, Logger.buildMessage(message, data));
     }
 
-    static error(message: string, data?: LogData, tag: string = Logger.DEFAULT_TAG): void {
-        hilog.error(Logger.DOMAIN, tag, '%{public}s', Logger.buildMessage(message, data));
+    static error(TAG: string = '', message: string, data?: LogData): void {
+        hilog.error(Logger.DOMAIN, Logger.DEFAULT_TAG, `[${TAG}]: %{public}s`, Logger.buildMessage(message, data));
     }
 
     private static buildMessage(message: string, data?: LogData): string {

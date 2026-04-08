@@ -1,29 +1,42 @@
-import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { Logger } from '../utils/Logger';
 
+const TAG = 'EntryAbility';
 export default class EntryAbility extends UIAbility {
-    onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-        Logger.info('EntryAbility onCreate', { want: want, launchParam: launchParam }, 'EntryAbility');
+    onCreate(_want: Want, _launchParam: AbilityConstant.LaunchParam): void {
+        Logger.debug(TAG, 'onCreate');
+        try {
+            this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+        } catch (err) {
+            Logger.error(TAG, 'EntryAbility setColorMode failed', err as Object);
+        }
     }
 
     onDestroy(): void {
-        Logger.info('EntryAbility onDestroy', undefined, 'EntryAbility');
+        Logger.info(TAG, 'onDestroy');
     }
 
-    onWindowStageCreate(_windowStage: window.WindowStage): void {
-        Logger.info('EntryAbility onWindowStageCreate', undefined, 'EntryAbility');
+    onWindowStageCreate(windowStage: window.WindowStage): void {
+        Logger.info(TAG, 'EntryAbility onWindowStageCreate');
+        windowStage.loadContent('pages/Index', (err) => {
+            if (err.code) {
+                Logger.error(TAG, 'loadContent failed', err as Object);
+                return;
+            }
+            Logger.info(TAG, 'loadContent success');
+        });
     }
 
     onWindowStageDestroy(): void {
-        Logger.info('EntryAbility onWindowStageDestroy', undefined, 'EntryAbility');
+        Logger.info(TAG, 'EntryAbility onWindowStageDestroy');
     }
 
     onForeground(): void {
-        Logger.info('EntryAbility onForeground', undefined, 'EntryAbility');
+        Logger.info(TAG, 'EntryAbility onForeground');
     }
 
     onBackground(): void {
-        Logger.info('EntryAbility onBackground', undefined, 'EntryAbility');
+        Logger.info(TAG, 'EntryAbility onBackground');
     }
 }
