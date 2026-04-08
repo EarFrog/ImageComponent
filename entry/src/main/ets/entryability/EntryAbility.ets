@@ -1,31 +1,29 @@
-﻿import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
+import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
-
-const DOMAIN = 0x0000;
+import { Logger } from '../utils/Logger';
 
 export default class EntryAbility extends UIAbility {
     onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-
+        Logger.info('EntryAbility onCreate', { want: want, launchParam: launchParam }, 'EntryAbility');
     }
 
     onDestroy(): void {
-
+        Logger.info('EntryAbility onDestroy', undefined, 'EntryAbility');
     }
 
-    onWindowStageCreate(windowStage: window.WindowStage): void {
-
+    onWindowStageCreate(_windowStage: window.WindowStage): void {
+        Logger.info('EntryAbility onWindowStageCreate', undefined, 'EntryAbility');
     }
 
     onWindowStageDestroy(): void {
-
+        Logger.info('EntryAbility onWindowStageDestroy', undefined, 'EntryAbility');
     }
 
     onForeground(): void {
-
+        Logger.info('EntryAbility onForeground', undefined, 'EntryAbility');
     }
 
     onBackground(): void {
-
+        Logger.info('EntryAbility onBackground', undefined, 'EntryAbility');
     }
 }
