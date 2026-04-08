@@ -3,6 +3,11 @@ import { SafeJsonUtils } from './SafeJsonUtils';
 
 type LogData = Object | string | number | boolean | null | undefined;
 
+interface ErrorWithStack {
+    message?: string;
+    stack?: string;
+}
+
 export class Logger {
     private static readonly DOMAIN: number = 0x0000;
     private static readonly DEFAULT_TAG: string = 'ImageComponent';
@@ -36,6 +41,12 @@ export class Logger {
         }
         if (typeof data === 'number' || typeof data === 'boolean') {
             return `${data}`;
+        }
+        // Check if it's an Error object with stack trace
+        const error = data as ErrorWithStack;
+        if (error && typeof error === 'object' && error.stack) {
+            const stackLines = error.stack.split('\n').slice(1).join('\n'); // Skip first line (error message)
+            return stackLines || error.message || '[no stack]';
         }
         return SafeJsonUtils.stringify(data, '[unserializable]');
     }

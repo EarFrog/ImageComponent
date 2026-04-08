@@ -21,3 +21,15 @@
 -enable-toplevel-obfuscation
 -enable-filename-obfuscation
 -enable-export-obfuscation
+-remove-log
+
+# Keep Logger class and its methods (needed for runtime logging)
+-keep-class-name class **.Logger { *; }
+-keep-class-name class **.SafeJsonUtils { *; }
+
+# Keep @Entry and @Component decorated classes (required by ArkUI)
+-keep-property-name class * {
+  @* *;
+}
+-keep-property-name @Entry *
+-keep-property-name @Component *
