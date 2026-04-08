@@ -60,6 +60,6 @@ export class Logger {
             const stackLines = error.stack.split('\n').slice(1).join('\n'); // Skip first line (error message)
             return stackLines || error.message || '[no stack]';
         }
-        return SafeJsonUtils.stringify(data, '[unserializable]');
+        return SafeJsonUtils.stringify(data);
     }
 }
