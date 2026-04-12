@@ -1,11 +1,7 @@
-﻿import common from '@ohos.app.ability.common';
-import {
-    CacheStrategy,
-    ImageKnife,
-    ImageKnifeOption,
-    ImageKnifeView,
-    TransformationType
-} from '@ohos/imageknifepro';
+import common from '@ohos.app.ability.common';
+import { ImageKnife } from '@ohos/imageknifepro';
+import { SmartImage, SmartImageEvent } from '../components/SmartImage';
+import { ImageCacheManager } from '../utils/ImageCacheManager';
 
 @Entry
 @Component
@@ -15,166 +11,75 @@ struct Index {
         'https://img0.baidu.com/it/u=3023852317,2734422755&fm=253&fmt=auto&app=138&f=PNG?w=500&h=500'
     ];
 
-    @State private demoReady: boolean = false;
     @State private currentRemoteIndex: number = 0;
-    @State private cacheReady: boolean = false;
     @State private networkProgress: number = 0;
-    @State private networkStatus: string = 'Waiting for network image';
-    @State private networkMeta: string = 'Image size, request state and render info will appear here.';
-    @State private cacheSummary: string = 'File cache is not initialized yet.';
-    @State private lastCachePath: string = 'No preload has been executed.';
-
-    @State private heroOption: ImageKnifeOption = new ImageKnifeOption();
-    @State private localOption: ImageKnifeOption = new ImageKnifeOption();
-    @State private effectOption: ImageKnifeOption = new ImageKnifeOption();
-    @State private errorOption: ImageKnifeOption = new ImageKnifeOption();
+    @State private networkStatus: string = 'Waiting for SmartImage request';
+    @State private networkMeta: string = 'Image size, HTTP state and render details will appear here.';
+    @State private cacheSummary: string = 'Preparing file cache...';
+    @State private lastCachePath: string = 'No preload has been executed yet.';
 
     aboutToAppear(): void {
-        if (!this.demoReady) {
-            this.setupDemoOptions();
-            this.demoReady = true;
-        }
-        this.prepareImageKnife();
+        this.networkMeta = `Current URL: ${this.currentRemoteSource()}`;
+        this.prepareCache();
     }
 
-    private setupDemoOptions(): void {
-        this.heroOption.loadSrc = this.currentRemoteSource();
-        this.heroOption.placeholderSrc = $r('app.media.background');
-        this.heroOption.errorSrc = $r('app.media.foreground');
-        this.heroOption.objectFit = ImageFit.Contain;
-        this.heroOption.placeholderObjectFit = ImageFit.Cover;
-        this.heroOption.errorObjectFit = ImageFit.Cover;
-        this.heroOption.border = { radius: 28 };
-        this.heroOption.writeCacheStrategy = CacheStrategy.DEFAULT;
-        this.heroOption.progressListener = (progress: number) => {
-            this.networkProgress = progress;
-            this.networkStatus = `Downloading network image ${progress}%`;
-        };
-        this.heroOption.onLoadListener = {
-            onLoadStart: () => {
-                this.networkProgress = 0;
-                this.networkStatus = 'Starting network image request';
-            },
-            onLoadSuccess: (imageInfo) => {
-                this.networkStatus = 'Network image loaded successfully';
-                this.networkMeta = `Source ${imageInfo.imageWidth} x ${imageInfo.imageHeight}, HTTP ${imageInfo.httpCode ?? '-'}, request ${imageInfo.requestId}`;
-            },
-            onLoadFailed: (err, imageInfo) => {
-                this.networkStatus = 'Network image failed to load';
-                this.networkMeta = `${err}, phase ${imageInfo.errorInfo?.phase ?? 'unknown'}, code ${imageInfo.errorInfo?.code ?? '-'}`;
-            }
-        };
-        this.heroOption.onComplete = (event) => {
-            if (event) {
-                this.networkMeta =
-                    `${this.networkMeta}\nComponent ${event.componentWidth} x ${event.componentHeight}, content ${event.contentWidth} x ${event.contentHeight}`;
-            }
-        };
-
-        this.localOption.loadSrc = $r('app.media.startIcon');
-        this.localOption.placeholderSrc = $r('app.media.foreground');
-        this.localOption.errorSrc = $r('app.media.foreground');
-        this.localOption.objectFit = ImageFit.Cover;
-        this.localOption.border = { radius: 24 };
-
-        this.effectOption.loadSrc = $r('app.media.foreground');
-        this.effectOption.placeholderSrc = $r('app.media.background');
-        this.effectOption.errorSrc = $r('app.media.startIcon');
-        this.effectOption.objectFit = ImageFit.Cover;
-        this.effectOption.transformationOption = {
-            type: TransformationType.CROP_CIRCLE_WITH_BORDER,
-            f32: [8, 255, 255, 255]
-        };
-
-        this.errorOption.loadSrc = 'https://example.invalid/not-found.png';
-        this.errorOption.placeholderSrc = $r('app.media.background');
-        this.errorOption.errorSrc = $r('app.media.foreground');
-        this.errorOption.objectFit = ImageFit.Cover;
-        this.errorOption.errorObjectFit = ImageFit.Contain;
-        this.errorOption.border = { radius: 24 };
-    }
-
-    private async prepareImageKnife(): Promise<void> {
-        const imageKnife = ImageKnife.getInstance();
-        imageKnife.setMaxRequests(4);
-
-        try {
-            if (!imageKnife.isFileCacheInit()) {
-                const context = getContext(this) as common.UIAbilityContext;
-                await imageKnife.initFileCache(context, 48, 64 * 1024 * 1024, 'image-demo-cache');
-            }
-            this.cacheReady = imageKnife.isFileCacheInit();
-            this.refreshCacheSummary();
-        } catch (error) {
-            this.cacheReady = false;
-            this.cacheSummary = `File cache init failed: ${this.errorText(error)}`;
-        }
+    private async prepareCache(): Promise<void> {
+        const ready = await ImageCacheManager.ensureReady(getContext(this) as common.UIAbilityContext);
+        this.cacheSummary = ready
+            ? ImageCacheManager.summary()
+            : 'File cache init failed. SmartImage will continue with memory cache.';
     }
 
     private currentRemoteSource(): string {
         return this.remoteSources[this.currentRemoteIndex];
     }
 
+    private handleHeroStateChange(event: SmartImageEvent): void {
+        this.networkProgress = event.progress;
+        this.networkStatus = event.message;
+
+        const imageSize = event.imageWidth > 0
+            ? `${event.imageWidth} x ${event.imageHeight}`
+            : 'unknown';
+        const httpCode = event.httpCode >= 0 ? `${event.httpCode}` : '-';
+        const requestId = event.requestId.length > 0 ? event.requestId : '-';
+        const renderInfo = event.componentWidth > 0
+            ? `Component ${event.componentWidth} x ${event.componentHeight}, content ${event.contentWidth} x ${event.contentHeight}`
+            : 'Waiting for first render callback';
+
+        this.networkMeta =
+            `URL: ${this.currentRemoteSource()}\nImage ${imageSize}, HTTP ${httpCode}, request ${requestId}\n${renderInfo}`;
+    }
+
     private switchRemoteImage(): void {
         this.currentRemoteIndex = (this.currentRemoteIndex + 1) % this.remoteSources.length;
-        this.heroOption.loadSrc = this.currentRemoteSource();
         this.networkProgress = 0;
-        this.networkStatus = 'Image source switched. Waiting for reload.';
+        this.networkStatus = 'Image source switched. Waiting for the next load.';
         this.networkMeta = `Current URL: ${this.currentRemoteSource()}`;
     }
 
     private async preloadCurrentImage(): Promise<void> {
         this.networkStatus = 'Preloading current image into file cache';
         try {
+            await this.prepareCache();
             this.lastCachePath = await ImageKnife.getInstance().preloadCache(this.currentRemoteSource());
-            this.networkStatus = this.lastCachePath.length > 0 ? 'Preload completed and file cache was written' : 'Preload completed but returned no cache path';
-            this.refreshCacheSummary();
+            this.networkStatus = this.lastCachePath.length > 0
+                ? 'Preload completed and file cache was written'
+                : 'Preload completed but returned no cache path';
+            this.cacheSummary = ImageCacheManager.summary();
         } catch (error) {
-            this.networkStatus = `Preload failed: ${this.errorText(error)}`;
+            this.networkStatus = `Preload failed: ${error}`;
         }
     }
 
     private async clearCache(): Promise<void> {
-        const imageKnife = ImageKnife.getInstance();
-        imageKnife.removeAllMemoryCache();
-        if (imageKnife.isFileCacheInit()) {
-            try {
-                await imageKnife.removeAllFileCache();
-                this.lastCachePath = 'Cache has been cleared.';
-            } catch (error) {
-                this.lastCachePath = `File cache clear failed: ${this.errorText(error)}`;
-            }
+        try {
+            await ImageCacheManager.clearAll();
+            this.lastCachePath = 'Cache has been cleared.';
+            this.cacheSummary = ImageCacheManager.summary();
+        } catch (error) {
+            this.lastCachePath = `Cache clear failed: ${error}`;
         }
-        this.refreshCacheSummary();
-    }
-
-    private refreshCacheSummary(): void {
-        const imageKnife = ImageKnife.getInstance();
-        if (!imageKnife.isFileCacheInit()) {
-            this.cacheSummary = 'Only memory cache is available because file cache is not ready.';
-            return;
-        }
-
-        const fileCount = imageKnife.getCurrentCacheNum(CacheStrategy.FILE) ?? 0;
-        const fileSize = imageKnife.getCurrentCacheSize(CacheStrategy.FILE) ?? 0;
-        const fileLimit = imageKnife.getCacheLimitSize(CacheStrategy.FILE) ?? 0;
-        const memoryCount = imageKnife.getCurrentCacheNum(CacheStrategy.MEMORY) ?? 0;
-        this.cacheSummary =
-            `File cache ${fileCount} items / ${this.formatBytes(fileSize)}, limit ${this.formatBytes(fileLimit)}; memory cache ${memoryCount} items`;
-    }
-
-    private formatBytes(size: number): string {
-        if (size < 1024) {
-            return `${size} B`;
-        }
-        if (size < 1024 * 1024) {
-            return `${(size / 1024).toFixed(1)} KB`;
-        }
-        return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    private errorText(error: Object): string {
-        return `${error}`;
     }
 
     @Builder
@@ -184,6 +89,7 @@ struct Index {
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#1D2736')
+
             Text(desc)
                 .fontSize(13)
                 .lineHeight(20)
@@ -192,43 +98,28 @@ struct Index {
         .alignItems(HorizontalAlign.Start)
     }
 
-    @Builder
-    private infoCard(title: string, desc: string, option: ImageKnifeOption) {
-        Column({ space: 12 }) {
-            ImageKnifeView({ imageKnifeOption: option })
-                .width('100%')
-                .height(170)
-
-            Text(title)
-                .fontSize(17)
-                .fontWeight(FontWeight.Medium)
-                .fontColor('#1F2937')
-
-            Text(desc)
-                .fontSize(12)
-                .lineHeight(18)
-                .fontColor('#5B6576')
-        }
-        .padding(16)
-        .backgroundColor('#FFFFFF')
-        .borderRadius(28)
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-    }
-
     build() {
         Scroll() {
             Column({ space: 18 }) {
-                this.sectionTitle('ImageKnife Demo Page', 'This page demonstrates local assets, network loading, placeholders, failure state, transformations and cache controls.')
+                this.sectionTitle(
+                    'SmartImage Component',
+                    'A reusable image component built on top of ImageKnifePro with placeholders, error fallback, progress callbacks and shared cache setup.'
+                )
 
                 Column({ space: 14 }) {
-                    ImageKnifeView({ imageKnifeOption: this.heroOption })
+                    SmartImage({
+                        src: this.currentRemoteSource(),
+                        placeholder: $r('app.media.background'),
+                        errorHolder: $r('app.media.foreground'),
+                        imageFit: ImageFit.Contain,
+                        cornerRadius: 32,
+                        showProgressTag: true,
+                        onStateChange: (event: SmartImageEvent) => this.handleHeroStateChange(event)
+                    })
                         .width('100%')
                         .height(240)
-                        .backgroundColor('#EAF2FF')
-                        .borderRadius(32)
 
-                    Text('Primary Network Sample')
+                    Text('Remote SmartImage')
                         .fontSize(18)
                         .fontWeight(FontWeight.Bold)
                         .fontColor('#152033')
@@ -281,41 +172,94 @@ struct Index {
                 .borderRadius(32)
                 .alignItems(HorizontalAlign.Start)
 
-                this.sectionTitle('Static Assets And Effects', 'The next two cards show a bundled asset and a transformed image with circular crop and border.')
+                this.sectionTitle(
+                    'Reusable Variants',
+                    'The same component can render bundled resources, avatar-style circle crops and standard rounded cards without repeating ImageKnifeOption wiring.'
+                )
 
                 Row({ space: 14 }) {
-                    this.infoCard(
-                        'Bundled Asset',
-                        'Loads an in-app resource directly and keeps rounded corners with Cover behavior.',
-                        this.localOption
-                    )
+                    Column({ space: 12 }) {
+                        SmartImage({
+                            src: $r('app.media.startIcon'),
+                            placeholder: $r('app.media.foreground'),
+                            errorHolder: $r('app.media.foreground'),
+                            imageFit: ImageFit.Cover,
+                            cornerRadius: 24,
+                            enableFileCache: false
+                        })
+                            .width('100%')
+                            .height(170)
 
-                    this.infoCard(
-                        'Transformed Asset',
-                        'Uses ImageKnife transformationOption to apply a circular crop and white border.',
-                        this.effectOption
-                    )
+                        Text('Bundled Asset')
+                            .fontSize(17)
+                            .fontWeight(FontWeight.Medium)
+                            .fontColor('#1F2937')
+
+                        Text('Uses the same API as the network image, but loads a local resource and keeps the layout clean with rounded corners.')
+                            .fontSize(12)
+                            .lineHeight(18)
+                            .fontColor('#5B6576')
+                    }
+                    .padding(16)
+                    .backgroundColor('#FFFFFF')
+                    .borderRadius(28)
+                    .alignItems(HorizontalAlign.Start)
+                    .layoutWeight(1)
+
+                    Column({ space: 12 }) {
+                        SmartImage({
+                            src: $r('app.media.foreground'),
+                            placeholder: $r('app.media.background'),
+                            errorHolder: $r('app.media.startIcon'),
+                            imageFit: ImageFit.Cover,
+                            circleCrop: true,
+                            circleBorderWidth: 8,
+                            enableFileCache: false
+                        })
+                            .width('100%')
+                            .height(170)
+
+                        Text('Circle Avatar')
+                            .fontSize(17)
+                            .fontWeight(FontWeight.Medium)
+                            .fontColor('#1F2937')
+
+                        Text('Circle crop and border are now just component props, so you do not need to build transformationOption by hand.')
+                            .fontSize(12)
+                            .lineHeight(18)
+                            .fontColor('#5B6576')
+                    }
+                    .padding(16)
+                    .backgroundColor('#FFFFFF')
+                    .borderRadius(28)
+                    .alignItems(HorizontalAlign.Start)
+                    .layoutWeight(1)
                 }
                 .width('100%')
 
-                this.sectionTitle('Failure State', 'This card intentionally requests an invalid URL so the placeholder and errorSrc fallback are visible.')
+                this.sectionTitle(
+                    'Failure Fallback',
+                    'The component also exposes placeholder and error fallback for failed network requests, so broken URLs do not leave empty blocks in the UI.'
+                )
 
                 Column({ space: 12 }) {
-                    ImageKnifeView({ imageKnifeOption: this.errorOption })
+                    SmartImage({
+                        src: 'https://example.invalid/not-found.png',
+                        placeholder: $r('app.media.background'),
+                        errorHolder: $r('app.media.foreground'),
+                        imageFit: ImageFit.Cover,
+                        errorFit: ImageFit.Contain,
+                        cornerRadius: 24
+                    })
                         .width('100%')
                         .height(180)
 
-                    Text('Error Fallback')
+                    Text('Error State')
                         .fontSize(17)
                         .fontWeight(FontWeight.Medium)
                         .fontColor('#1F2937')
 
-                    Text('When loading fails, the view falls back to a local errorSrc. This is useful for empty states, fallback art or default covers.')
-                        .fontSize(12)
-                        .lineHeight(18)
-                        .fontColor('#5B6576')
-
-                    Text(this.cacheReady ? 'File cache is enabled, so network images also participate in disk caching.' : 'When file cache is unavailable, bundled assets and memory cache still work.')
+                    Text('When loading fails, SmartImage automatically falls back to the local error asset and still keeps the card layout stable.')
                         .fontSize(12)
                         .lineHeight(18)
                         .fontColor('#5B6576')
